@@ -24,39 +24,64 @@ export function MobileNav() {
     { name: "Account", href: "/account", icon: User },
   ];
 
+  const cartCount = cart?.itemCount ?? 0;
+
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-t border-white/5 pb-[env(safe-area-inset-bottom)] px-2 h-16 flex items-center justify-around shadow-[0_-10px_40px_rgba(0,0,0,0.3)]">
-      {navItems.map((item) => {
-        const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
-        
-        return (
-          <Link key={item.href} href={item.href} className="flex-1 flex flex-col items-center justify-center gap-1 relative py-2">
-            <div className={cn(
-              "p-1.5 rounded-xl transition-all duration-300 relative",
-              isActive ? "text-primary bg-primary/10" : "text-muted-foreground"
-            )}>
-              <item.icon className={cn(
-                "w-6 h-6 transition-transform duration-300",
-                isActive && "scale-110"
-              )} />
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]">
+      {/* Glassmorphism bar */}
+      <div className="bg-background/88 backdrop-blur-2xl border-t border-white/[0.07] shadow-[0_-8px_32px_rgba(0,0,0,0.4)] h-16 flex items-center justify-around px-2">
+        {navItems.map((item) => {
+          const isActive = item.href === "/"
+            ? location === "/"
+            : location.startsWith(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="relative flex-1 flex flex-col items-center justify-center gap-1 py-2 group"
+            >
+              {/* Active pill background */}
               {isActive && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
+                <div className="absolute inset-x-1 top-1 bottom-1 rounded-xl bg-primary/10 -z-10" />
               )}
-              {item.href === "/cart" && cart && (cart.itemCount ?? 0) > 0 && !isActive && (
-                <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(212,175,55,0.6)]">
-                  {(cart.itemCount ?? 0) > 9 ? "9+" : cart.itemCount}
-                </div>
-              )}
-            </div>
-            <span className={cn(
-              "text-[10px] font-medium transition-colors duration-300",
-              isActive ? "text-primary" : "text-muted-foreground"
-            )}>
-              {item.name}
-            </span>
-          </Link>
-        );
-      })}
+
+              <div className="relative">
+                <item.icon className={cn(
+                  "w-[22px] h-[22px] transition-all duration-300",
+                  isActive
+                    ? "text-primary scale-110 drop-shadow-[0_0_6px_rgba(212,175,55,0.6)]"
+                    : "text-muted-foreground group-hover:text-foreground group-hover:scale-105"
+                )} />
+
+                {/* Cart badge */}
+                {item.href === "/cart" && cartCount > 0 && (
+                  <div className={cn(
+                    "absolute -top-1.5 -right-2 min-w-[17px] h-[17px] rounded-full text-[9px] font-bold flex items-center justify-center px-1 transition-all",
+                    isActive
+                      ? "bg-primary/80 text-primary-foreground"
+                      : "bg-primary text-primary-foreground shadow-[0_0_8px_rgba(212,175,55,0.5)]"
+                  )}>
+                    {cartCount > 9 ? "9+" : cartCount}
+                  </div>
+                )}
+
+                {/* Active dot */}
+                {isActive && item.href !== "/cart" && (
+                  <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(212,175,55,0.9)]" />
+                )}
+              </div>
+
+              <span className={cn(
+                "text-[10px] font-semibold transition-colors duration-300",
+                isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-muted-foreground"
+              )}>
+                {item.name}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }
