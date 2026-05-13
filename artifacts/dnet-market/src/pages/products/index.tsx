@@ -129,33 +129,42 @@ export default function ProductsList() {
       ) : products && products.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-24 md:pb-8">
           {products.map(product => (
-            <Card 
+            <Card
               key={product.id}
               onClick={() => setLocation(`/products/${product.id}`)}
-              className="bg-card/50 backdrop-blur border-white/5 overflow-hidden cursor-pointer hover:border-primary/30 transition-colors flex flex-col h-full"
+              className="bg-card/60 backdrop-blur border-white/5 overflow-hidden cursor-pointer hover:border-primary/25 hover:shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition-all duration-300 flex flex-col h-full group"
               data-testid={`product-card-${product.id}`}
             >
-              <div className="aspect-square bg-white/5 relative">
-                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+              <div className="aspect-square bg-white/5 relative overflow-hidden">
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                />
+                {product.originalPrice && (
+                  <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wide">
+                    SALE
+                  </div>
+                )}
               </div>
               <div className="p-3 flex flex-col flex-1">
-                <h4 className="text-sm font-medium line-clamp-2 mb-1">{product.name}</h4>
+                <h4 className="text-sm font-medium line-clamp-2 mb-1 group-hover:text-primary/90 transition-colors">{product.name}</h4>
                 <div className="flex items-center gap-1 mb-2">
-                  <Star className="w-3 h-3 text-primary fill-primary" />
-                  <span className="text-xs font-medium">{product.rating?.toFixed(1) || "5.0"}</span>
-                  <span className="text-xs text-muted-foreground ml-1">{product.vendorName}</span>
+                  <Star className="w-3 h-3 text-primary fill-primary flex-shrink-0" />
+                  <span className="text-xs font-semibold">{product.rating?.toFixed(1) || "5.0"}</span>
+                  <span className="text-xs text-muted-foreground ml-1 truncate">{product.vendorName}</span>
                 </div>
                 <div className="mt-auto flex items-end justify-between">
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-primary">₦{product.price.toLocaleString()}</span>
                     {product.originalPrice && (
-                      <span className="text-xs text-muted-foreground line-through">₦{product.originalPrice.toLocaleString()}</span>
+                      <span className="text-[11px] text-muted-foreground line-through">₦{product.originalPrice.toLocaleString()}</span>
                     )}
                   </div>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="h-8 w-8 rounded-full bg-primary/20 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-full bg-primary/15 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200 hover:shadow-[0_0_12px_rgba(212,175,55,0.4)] flex-shrink-0"
                     onClick={(e) => handleAddToCart(e, product.id)}
                     disabled={addToCart.isPending}
                     data-testid={`add-to-cart-${product.id}`}

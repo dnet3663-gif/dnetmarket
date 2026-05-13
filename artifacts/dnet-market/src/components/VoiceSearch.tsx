@@ -93,7 +93,7 @@ export function VoiceSearch({ onSearch, className, placeholder = "Search DNET...
             : "text-muted-foreground hover:text-foreground hover:bg-white/10"
         )}
       >
-        {isListening ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5 opacity-50" />}
+        {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5 opacity-60" />}
       </Button>
     </div>
   );

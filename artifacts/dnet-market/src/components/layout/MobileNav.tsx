@@ -1,9 +1,11 @@
 import { Link, useLocation } from "wouter";
 import { Home, Compass, ShoppingBag, MessageSquare, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useGetCart } from "@workspace/api-client-react";
 
 export function MobileNav() {
   const [location] = useLocation();
+  const { data: cart } = useGetCart();
 
   // Hide on specific routes
   if (
@@ -39,6 +41,11 @@ export function MobileNav() {
               )} />
               {isActive && (
                 <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
+              )}
+              {item.href === "/cart" && cart && (cart.itemCount ?? 0) > 0 && !isActive && (
+                <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(212,175,55,0.6)]">
+                  {(cart.itemCount ?? 0) > 9 ? "9+" : cart.itemCount}
+                </div>
               )}
             </div>
             <span className={cn(

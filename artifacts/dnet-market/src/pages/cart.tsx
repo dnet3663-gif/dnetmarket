@@ -82,8 +82,18 @@ export default function Cart() {
               </div>
               
               <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center bg-white/5 border border-white/10 rounded-full px-2 h-8">
-                  <span className="w-8 text-center text-sm font-medium">Qty: {item.quantity}</span>
+                <div className="flex items-center bg-white/5 border border-white/10 rounded-full h-8 overflow-hidden">
+                  <button
+                    className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors text-base font-bold"
+                    onClick={() => {}}
+                    aria-label="Decrease quantity"
+                  >−</button>
+                  <span className="w-7 text-center text-sm font-semibold select-none">{item.quantity}</span>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors text-base font-bold"
+                    onClick={() => {}}
+                    aria-label="Increase quantity"
+                  >+</button>
                 </div>
               </div>
             </div>
