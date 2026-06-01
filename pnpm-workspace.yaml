@@ -68,7 +68,15 @@ catalog:
 
 autoInstallPeers: false
 
+# pnpm v9 field — allow these packages to run install scripts
 onlyBuiltDependencies:
+  - '@swc/core'
+  - esbuild
+  - msw
+  - unrs-resolver
+
+# pnpm v11 field — same list, renamed from onlyBuiltDependencies
+approvedBuildsDependencies:
   - '@swc/core'
   - esbuild
   - msw
