@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useGetCart, useCreateOrder } from "@workspace/api-client-react";
 import { ArrowLeft, CheckCircle2, CreditCard, Banknote, MapPin, Shield, Lock, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,25 @@ const STEPS = [
   { num: 3, label: "Review", short: "Confirm" },
 ];
 
+interface BuyNowItem {
+  productId: number;
+  name: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string;
+  vendorName?: string;
+}
+
 export default function Checkout() {
   const [, setLocation] = useLocation();
-  const { data: cart, isLoading } = useGetCart();
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const isBuyNow = params.get('mode') === 'buynow';
+
+  const { data: cart, isLoading: cartLoading } = useGetCart();
   const createOrder = useCreateOrder();
 
+  const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [formData, setFormData] = useState({
     name: "",
@@ -31,6 +45,20 @@ export default function Checkout() {
     state: "",
   });
   const [paymentMethod, setPaymentMethod] = useState("pay_on_delivery");
+
+  // Load Buy Now item from sessionStorage
+  useEffect(() => {
+    if (isBuyNow) {
+      try {
+        const stored = sessionStorage.getItem('dnet_buynow');
+        if (stored) {
+          setBuyNowItem(JSON.parse(stored));
+        }
+      } catch {
+        // sessionStorage unavailable — fall back to cart
+      }
+    }
+  }, [isBuyNow]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -50,17 +78,25 @@ export default function Checkout() {
 
   const handlePlaceOrder = () => {
     const deliveryAddress = `${formData.address}, ${formData.city}, ${formData.state}`;
+
+    const items = isBuyNow && buyNowItem
+      ? [{ productId: buyNowItem.productId, quantity: buyNowItem.quantity, price: buyNowItem.price }]
+      : cart?.items?.map((i: any) => ({ productId: i.productId, quantity: i.quantity, price: i.price })) || [];
+
     createOrder.mutate(
       {
         data: {
           deliveryAddress,
           paymentMethod: paymentMethod as any,
           notes: `Contact: ${formData.name} (${formData.phone})`,
-          items: cart?.items?.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })) || []
+          items,
         } as any
       },
       {
         onSuccess: (order) => {
+          if (isBuyNow) {
+            try { sessionStorage.removeItem('dnet_buynow'); } catch {}
+          }
           toast.success("Order placed successfully!");
           setLocation(`/order-confirmation/${order.id || 1}`);
         },
@@ -71,6 +107,8 @@ export default function Checkout() {
     );
   };
 
+  const isLoading = cartLoading && !isBuyNow;
+
   if (isLoading) {
     return (
       <div className="w-full max-w-xl mx-auto p-4 md:py-10 space-y-6">
@@ -80,25 +118,36 @@ export default function Checkout() {
     );
   }
 
-  if (!cart || !cart.items || cart.items.length === 0) {
+  // If Buy Now mode but no item found, fall back to cart behaviour
+  const effectiveItems: any[] = isBuyNow && buyNowItem
+    ? [{ id: 'buynow', productId: buyNowItem.productId, quantity: buyNowItem.quantity, price: buyNowItem.price, product: { name: buyNowItem.name, imageUrl: buyNowItem.imageUrl } }]
+    : cart?.items || [];
+
+  if (!isBuyNow && (!cart || !cart.items || cart.items.length === 0)) {
+    setLocation('/cart');
+    return null;
+  }
+
+  if (isBuyNow && !buyNowItem && !cartLoading) {
     setLocation('/cart');
     return null;
   }
 
   const deliveryFee = 2500;
-  const subtotal = cart.total || 0;
+  const subtotal = isBuyNow && buyNowItem
+    ? buyNowItem.price * buyNowItem.quantity
+    : cart?.total || 0;
   const total = subtotal + deliveryFee;
-  const progressPct = step === 1 ? 0 : step === 2 ? 50 : 100;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background">
       {/* Minimal Checkout Header */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-white/[0.06] h-14 flex items-center px-4 md:px-8">
+      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-white/[0.06] h-14 flex items-center px-4 md:px-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => step > 1 ? setStep((step - 1) as any) : window.history.back()}
-          className="rounded-full hover:bg-white/5 mr-3"
+          className="rounded-full hover:bg-white/5 mr-3 min-w-[44px] min-h-[44px]"
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -108,14 +157,17 @@ export default function Checkout() {
               <span className="text-primary-foreground font-bold text-xs">D</span>
             </div>
             <span className="font-bold text-base tracking-tight">Checkout</span>
+            {isBuyNow && (
+              <span className="text-[9px] font-bold bg-primary/15 text-primary border border-primary/25 px-1.5 py-0.5 rounded-full ml-1">FAST</span>
+            )}
           </div>
         </div>
-        <div className="w-10 flex items-center justify-center">
+        <div className="w-[44px] flex items-center justify-center">
           <Lock className="w-4 h-4 text-muted-foreground" />
         </div>
       </header>
 
-      <div className="w-full max-w-xl mx-auto px-4 py-6">
+      <div className="w-full max-w-xl mx-auto px-4 py-6" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
         {/* Step Progress */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -163,33 +215,46 @@ export default function Checkout() {
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Full Name</Label>
                   <Input id="name" name="name" value={formData.name} onChange={handleInputChange}
-                    className="bg-white/5 border-white/10 h-12 rounded-xl focus-visible:ring-primary focus-visible:border-primary"
-                    placeholder="John Doe" />
+                    className="bg-white/5 border-white/10 h-[48px] rounded-xl focus-visible:ring-primary focus-visible:border-primary text-base"
+                    placeholder="John Doe"
+                    autoComplete="name"
+                    inputMode="text"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone Number</Label>
                   <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange}
-                    className="bg-white/5 border-white/10 h-12 rounded-xl focus-visible:ring-primary focus-visible:border-primary"
-                    placeholder="+234 800 000 0000" />
+                    className="bg-white/5 border-white/10 h-[48px] rounded-xl focus-visible:ring-primary focus-visible:border-primary text-base"
+                    placeholder="+234 800 000 0000"
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="address" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Street Address</Label>
                   <Input id="address" name="address" value={formData.address} onChange={handleInputChange}
-                    className="bg-white/5 border-white/10 h-12 rounded-xl focus-visible:ring-primary focus-visible:border-primary"
-                    placeholder="15 Adeola Odeku Street" />
+                    className="bg-white/5 border-white/10 h-[48px] rounded-xl focus-visible:ring-primary focus-visible:border-primary text-base"
+                    placeholder="15 Adeola Odeku Street"
+                    autoComplete="street-address"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="city" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">City</Label>
                     <Input id="city" name="city" value={formData.city} onChange={handleInputChange}
-                      className="bg-white/5 border-white/10 h-12 rounded-xl focus-visible:ring-primary focus-visible:border-primary"
-                      placeholder="Lagos" />
+                      className="bg-white/5 border-white/10 h-[48px] rounded-xl focus-visible:ring-primary focus-visible:border-primary text-base"
+                      placeholder="Lagos"
+                      autoComplete="address-level2"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="state" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</Label>
                     <Input id="state" name="state" value={formData.state} onChange={handleInputChange}
-                      className="bg-white/5 border-white/10 h-12 rounded-xl focus-visible:ring-primary focus-visible:border-primary"
-                      placeholder="Lagos" />
+                      className="bg-white/5 border-white/10 h-[48px] rounded-xl focus-visible:ring-primary focus-visible:border-primary text-base"
+                      placeholder="Lagos"
+                      autoComplete="address-level1"
+                    />
                   </div>
                 </div>
               </div>
@@ -197,7 +262,7 @@ export default function Checkout() {
 
             <Button
               onClick={handleNextStep}
-              className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 shadow-[0_0_20px_rgba(212,175,55,0.25)] transition-all active:scale-[0.98]"
+              className="w-full h-[56px] rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 shadow-[0_0_20px_rgba(212,175,55,0.25)] transition-all active:scale-[0.98]"
             >
               Continue to Payment <ChevronRight className="w-5 h-5 ml-1" />
             </Button>
@@ -219,31 +284,15 @@ export default function Checkout() {
 
             <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
               {[
-                {
-                  value: "pay_on_delivery",
-                  icon: MapPin,
-                  title: "Pay on Delivery",
-                  desc: "Pay cash when your order arrives",
-                  badge: "Most Popular"
-                },
-                {
-                  value: "bank_transfer",
-                  icon: Banknote,
-                  title: "Bank Transfer",
-                  desc: "Direct transfer to DNET account"
-                },
-                {
-                  value: "card",
-                  icon: CreditCard,
-                  title: "Card Payment",
-                  desc: "Visa, Mastercard, Verve"
-                },
+                { value: "pay_on_delivery", icon: MapPin, title: "Pay on Delivery", desc: "Pay cash when your order arrives", badge: "Most Popular" },
+                { value: "bank_transfer", icon: Banknote, title: "Bank Transfer", desc: "Direct transfer to DNET account" },
+                { value: "card", icon: CreditCard, title: "Card Payment", desc: "Visa, Mastercard, Verve" },
               ].map(opt => (
                 <div
                   key={opt.value}
                   onClick={() => setPaymentMethod(opt.value)}
                   className={cn(
-                    "flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all duration-200",
+                    "flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all duration-200 min-h-[72px]",
                     paymentMethod === opt.value
                       ? "border-primary bg-primary/8 shadow-[0_0_16px_rgba(212,175,55,0.1)]"
                       : "border-white/8 bg-white/4 hover:border-white/16 hover:bg-white/6"
@@ -264,14 +313,14 @@ export default function Checkout() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
                   </div>
-                  <RadioGroupItem value={opt.value} className="border-white/20 data-[state=checked]:border-primary" />
+                  <RadioGroupItem value={opt.value} className="border-white/20 data-[state=checked]:border-primary flex-shrink-0" />
                 </div>
               ))}
             </RadioGroup>
 
             <Button
               onClick={handleNextStep}
-              className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 shadow-[0_0_20px_rgba(212,175,55,0.25)] transition-all active:scale-[0.98]"
+              className="w-full h-[56px] rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 shadow-[0_0_20px_rgba(212,175,55,0.25)] transition-all active:scale-[0.98]"
             >
               Review Order <ChevronRight className="w-5 h-5 ml-1" />
             </Button>
@@ -280,7 +329,7 @@ export default function Checkout() {
 
         {/* Step 3: Review & Place Order */}
         {step === 3 && (
-          <div className="space-y-5 animate-in fade-in slide-in-from-right-3 duration-300 pb-10">
+          <div className="space-y-5 animate-in fade-in slide-in-from-right-3 duration-300 pb-6">
             <div>
               <h2 className="text-xl font-bold mb-1">Review Your Order</h2>
               <p className="text-sm text-muted-foreground">Confirm your details before placing</p>
@@ -292,7 +341,7 @@ export default function Checkout() {
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Order Items</h3>
               </div>
               <div className="divide-y divide-white/5">
-                {cart.items.map((item: any) => (
+                {effectiveItems.map((item: any) => (
                   <div key={item.id} className="flex items-center gap-3 p-4">
                     <div className="w-12 h-12 rounded-xl bg-white/5 overflow-hidden flex-shrink-0">
                       {item.product?.imageUrl && (
@@ -303,7 +352,7 @@ export default function Checkout() {
                       <p className="text-sm font-medium line-clamp-1">{item.product?.name || "Product"}</p>
                       <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                     </div>
-                    <span className="text-sm font-bold text-primary">₦{(item.price * item.quantity).toLocaleString()}</span>
+                    <span className="text-sm font-bold text-primary flex-shrink-0">₦{(item.price * item.quantity).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -327,27 +376,27 @@ export default function Checkout() {
             <Card className="overflow-hidden bg-card/60 border-white/8">
               <div className="p-4 flex items-start gap-3 border-b border-white/8">
                 <MapPin className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Delivering to</p>
                   <p className="text-sm font-semibold">{formData.name} · {formData.phone}</p>
                   <p className="text-xs text-muted-foreground">{formData.address}, {formData.city}, {formData.state}</p>
                 </div>
-                <button onClick={() => setStep(1)} className="ml-auto text-xs text-primary hover:underline flex-shrink-0">Edit</button>
+                <button onClick={() => setStep(1)} className="ml-auto text-xs text-primary hover:underline flex-shrink-0 min-h-[44px] px-2 flex items-center">Edit</button>
               </div>
               <div className="p-4 flex items-center gap-3">
                 <CreditCard className="w-4 h-4 text-primary flex-shrink-0" />
-                <div>
+                <div className="flex-1">
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Payment</p>
                   <p className="text-sm font-semibold capitalize">{paymentMethod.replace(/_/g, ' ')}</p>
                 </div>
-                <button onClick={() => setStep(2)} className="ml-auto text-xs text-primary hover:underline flex-shrink-0">Edit</button>
+                <button onClick={() => setStep(2)} className="ml-auto text-xs text-primary hover:underline flex-shrink-0 min-h-[44px] px-2 flex items-center">Edit</button>
               </div>
             </Card>
 
             <Button
               onClick={handlePlaceOrder}
               disabled={createOrder.isPending}
-              className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-lg hover:bg-primary/90 shadow-[0_0_28px_rgba(212,175,55,0.35)] transition-all active:scale-[0.98]"
+              className="w-full h-[56px] rounded-2xl bg-primary text-primary-foreground font-bold text-lg hover:bg-primary/90 shadow-[0_0_28px_rgba(212,175,55,0.35)] transition-all active:scale-[0.98]"
             >
               {createOrder.isPending ? (
                 <span className="flex items-center gap-2">

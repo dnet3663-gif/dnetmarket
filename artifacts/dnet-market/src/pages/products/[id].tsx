@@ -3,16 +3,16 @@ import { useLocation } from "wouter";
 import { useGetProduct, useGetProductReviews, useAddToCart } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Star, Heart, Share2, ShoppingBag, ShieldCheck, Truck, ArrowRight } from "lucide-react";
+import { ArrowLeft, Star, Heart, Share2, ShoppingBag, ShieldCheck, Truck, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function ProductDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const id = parseInt(params.id);
-  const { data: product, isLoading } = useGetProduct(id, { query: { enabled: !!id, queryKey: ['/api/products', id] as any } }); // Using raw key to bypass import issue temporarily
+  const { data: product, isLoading } = useGetProduct(id, { query: { enabled: !!id, queryKey: ['/api/products', id] as any } });
   const { data: reviews } = useGetProductReviews(id, { query: { enabled: !!id, queryKey: ['/api/products', id, 'reviews'] as any } });
-  
+
   const addToCart = useAddToCart();
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
@@ -35,6 +35,23 @@ export default function ProductDetail({ params }: { params: { id: string } }) {
     );
   };
 
+  const handleBuyNow = () => {
+    if (!product) return;
+    try {
+      sessionStorage.setItem('dnet_buynow', JSON.stringify({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity,
+        imageUrl: product.imageUrl,
+        vendorName: product.vendorName,
+      }));
+    } catch {
+      // sessionStorage unavailable — proceed anyway
+    }
+    setLocation('/checkout?mode=buynow');
+  };
+
   if (isLoading) {
     return (
       <div className="w-full max-w-7xl mx-auto p-4 md:p-8 animate-pulse">
@@ -50,17 +67,22 @@ export default function ProductDetail({ params }: { params: { id: string } }) {
   const allImages = [product.imageUrl, ...(product.images || [])];
 
   return (
-    <div className="w-full max-w-7xl mx-auto md:px-8 pb-24 md:pb-8">
+    <div className="w-full max-w-7xl mx-auto md:px-8 pb-32 md:pb-8">
       {/* Mobile Nav */}
       <div className="md:hidden sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-4 h-14 flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="rounded-full">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => window.history.back()}
+          className="rounded-full min-w-[44px] min-h-[44px]"
+        >
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" className="rounded-full">
+          <Button variant="ghost" size="icon" className="rounded-full min-w-[44px] min-h-[44px]">
             <Share2 className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full">
+          <Button variant="ghost" size="icon" className="rounded-full min-w-[44px] min-h-[44px]">
             <Heart className="w-5 h-5" />
           </Button>
         </div>
@@ -70,9 +92,9 @@ export default function ProductDetail({ params }: { params: { id: string } }) {
         {/* Images */}
         <div className="space-y-4">
           <div className="aspect-square rounded-3xl bg-zinc-900 border border-white/5 overflow-hidden relative group">
-            <img 
-              src={allImages[activeImage]} 
-              alt={product.name} 
+            <img
+              src={allImages[activeImage]}
+              alt={product.name}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
             {product.isTrending && (
@@ -88,7 +110,7 @@ export default function ProductDetail({ params }: { params: { id: string } }) {
                   key={idx}
                   onClick={() => setActiveImage(idx)}
                   className={cn(
-                    "relative w-20 h-20 rounded-xl overflow-hidden snap-start flex-shrink-0 border-2 transition-colors",
+                    "relative w-[72px] h-[72px] min-w-[44px] min-h-[44px] rounded-xl overflow-hidden snap-start flex-shrink-0 border-2 transition-colors",
                     activeImage === idx ? "border-primary" : "border-transparent opacity-50 hover:opacity-100"
                   )}
                 >
@@ -108,7 +130,7 @@ export default function ProductDetail({ params }: { params: { id: string } }) {
               <span className="text-muted-foreground">{product.categoryName}</span>
             </div>
             <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-4">{product.name}</h1>
-            
+
             <div className="flex items-center gap-4 mb-6">
               <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-full border border-white/10">
                 <Star className="w-4 h-4 text-primary fill-primary" />
@@ -137,14 +159,14 @@ export default function ProductDetail({ params }: { params: { id: string } }) {
           {/* Features */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5">
-              <ShieldCheck className="w-8 h-8 text-primary" />
+              <ShieldCheck className="w-8 h-8 text-primary flex-shrink-0" />
               <div>
                 <div className="text-sm font-bold text-foreground">DNET Guarantee</div>
                 <div className="text-xs text-muted-foreground">100% Authentic</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5">
-              <Truck className="w-8 h-8 text-primary" />
+              <Truck className="w-8 h-8 text-primary flex-shrink-0" />
               <div>
                 <div className="text-sm font-bold text-foreground">Express Delivery</div>
                 <div className="text-xs text-muted-foreground">Within 24hrs</div>
@@ -152,19 +174,51 @@ export default function ProductDetail({ params }: { params: { id: string } }) {
             </div>
           </div>
 
+          {/* Quantity + Action Buttons */}
           <div className="mt-auto pt-8 border-t border-white/10">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center bg-white/5 border border-white/10 rounded-full h-14 px-2">
-                <Button variant="ghost" size="icon" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="rounded-full w-10 h-10 hover:bg-white/10">-</Button>
-                <span className="w-8 text-center font-bold">{quantity}</span>
-                <Button variant="ghost" size="icon" onClick={() => setQuantity(quantity + 1)} className="rounded-full w-10 h-10 hover:bg-white/10">+</Button>
+            {/* Quantity Selector */}
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-sm text-muted-foreground font-medium">Qty:</span>
+              <div className="flex items-center bg-white/5 border border-white/10 rounded-full h-11 px-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="rounded-full w-[44px] h-[44px] hover:bg-white/10"
+                  aria-label="Decrease quantity"
+                >−</Button>
+                <span className="w-8 text-center font-bold select-none">{quantity}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="rounded-full w-[44px] h-[44px] hover:bg-white/10"
+                  aria-label="Increase quantity"
+                >+</Button>
               </div>
-              <Button 
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Buy Now — primary CTA */}
+              <Button
+                onClick={handleBuyNow}
+                disabled={!product.inStock}
+                className="flex-1 h-[56px] rounded-full bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <Zap className="w-5 h-5" />
+                Buy Now
+              </Button>
+
+              {/* Add to Cart — secondary */}
+              <Button
+                variant="outline"
                 onClick={handleAddToCart}
                 disabled={!product.inStock || addToCart.isPending}
-                className="flex-1 h-14 rounded-full bg-primary text-primary-foreground font-bold text-lg hover:bg-primary/90 shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all active:scale-[0.98]"
+                className="flex-1 h-[56px] rounded-full border-white/20 hover:border-primary/50 hover:bg-primary/5 font-bold text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2"
               >
-                {addToCart.isPending ? "Adding..." : "Add to Cart"}
+                <ShoppingBag className="w-5 h-5" />
+                {addToCart.isPending ? "Adding…" : "Add to Cart"}
               </Button>
             </div>
           </div>
