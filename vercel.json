@@ -1,6 +1,6 @@
 {
   "buildCommand": "pnpm --filter @workspace/dnet-market run build",
-  "outputDirectory": "artifacts/dnet-market/dist",
+  "outputDirectory": "artifacts/dnet-market/dist/public",
   "installCommand": "pnpm install --frozen-lockfile=false",
   "framework": null,
   "rewrites": [
